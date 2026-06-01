@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   web:
     build:
@@ -15,7 +13,8 @@ services:
       DB_PASS: crypto_pass
       DB_NAME: cryptodb
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     networks:
       - crypto_net
 
@@ -31,6 +30,12 @@ services:
       - db_data:/var/lib/mysql
     networks:
       - crypto_net
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
 
 volumes:
   db_data:

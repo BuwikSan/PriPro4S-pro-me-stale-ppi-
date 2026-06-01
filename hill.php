@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hill Cipher - Kryptografické Šifry</title>
+    <title>Hill Cipher – Kryptografické Šifry</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -19,112 +19,155 @@
         <main>
             <h2>Hill Cipher Demonstrace</h2>
 
+            <!-- Pouze šifrování — decrypt je v tabulce -->
             <div class="form-group">
-                <label for="input">Vstup (text k zašifrování/dešifrování):</label>
-                <textarea id="input" placeholder="Zadejte text zde..."></textarea>
+                <label for="input">Vstupní text:</label>
+                <textarea id="input" placeholder="Zadej text ke zašifrování..."></textarea>
             </div>
-
             <div class="button-group">
                 <button onclick="encrypt()">🔒 Šifrovat</button>
-                <button onclick="decrypt()">🔓 Dešifrovat</button>
             </div>
-
             <div id="status"></div>
 
-            <label class="output-label" for="output">Výstup:</label>
-            <div id="output">Výsledek se zobrazí zde...</div>
+            <!-- Tabulka historie: enc řádky mají tlačítko Dešifrovat -->
+            <div class="history-section">
+                <h2>Historie operací</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width:90px">Operace</th>
+                            <th>Vstup</th>
+                            <th>Výstup</th>
+                            <th style="width:140px">Čas</th>
+                            <th style="width:110px">Akce</th>
+                        </tr>
+                    </thead>
+                    <tbody id="historyBody">
+                        <tr><td colspan="5" class="empty-row">Zatím žádné záznamy.</td></tr>
+                    </tbody>
+                </table>
+            </div>
 
             <div class="info-box">
                 <h4>🧮 Jak Funguje Hill Cipher?</h4>
-                <p>
-                    <strong>Hill Cipher</strong> je polyalphabetická šifra využívající maticové operace.
-                </p>
-                <p style="margin-top: 10px;">
-                    <strong>Základní Princip:</strong><br>
-                    Text je rozdělen do bloků a každý blok je reprezentován jako vektor.
-                    Tento vektor je vynásoben šifrovací maticí (klíč) modulo 26.
-                </p>
-                <p style="margin-top: 10px;">
+                <p><strong>Hill Cipher</strong> je polyalphabetická šifra využívající maticové operace.</p>
+                <p style="margin-top:10px;">
                     <strong>Matematika:</strong><br>
-                    <code>C = (K × P) mod 26</code><br>
-                    Kde: <code>C</code> = šifrový text, <code>K</code> = matice klíče, <code>P</code> = text
+                    <code>C = (K × P) mod n</code> — šifrování<br>
+                    <code>P = (K⁻¹ × C) mod n</code> — dešifrování inverzní maticí<br>
+                    kde <code>n</code> = velikost abecedy (zde 43 znaků vč. české diakritiky)
                 </p>
-                <p style="margin-top: 10px;">
-                    <strong>Dešifrování:</strong><br>
-                    Dešifrování používá inverzní matici: <code>P = (K⁻¹ × C) mod 26</code>
-                </p>
-                <p style="margin-top: 10px;">
-                    <strong>Výhody:</strong><br>
-                    - Odolnost vůči frekvenční analýze<br>
-                    - Polyalphabetické zašifrování<br>
-                    - Matematicky elegantní řešení
-                </p>
-                <p style="margin-top: 10px;">
-                    <strong>Nevýhody:</strong><br>
-                    - Náročné na výpočty bez počítače<br>
-                    - Potřeba invertibilní matice<br>
-                    - Náchylná na útok se známým textem
+                <p style="margin-top:10px;">
+                    <strong>Výhody:</strong> odolnost vůči frekvenční analýze<br>
+                    <strong>Nevýhody:</strong> náchylná na útok se známým plaintextem
                 </p>
             </div>
         </main>
     </div>
 
-    <footer>
-        <p>© 2025 Kryptografické Laboratorium</p>
-    </footer>
+    <footer><p>© 2025 Kryptografické Laboratorium</p></footer>
 
     <script>
-        // Send AJAX request to API
-        async function sendRequest(operation) {
-            const input = document.getElementById('input').value;
-            const output = document.getElementById('output');
-            const status = document.getElementById('status');
+        // Plné záznamy z DB — přístup přes id, žádné escaping problemy v onclick
+        let historyData = {};
 
-            if (!input.trim()) {
-                status.innerHTML = '<div class="error">❌ Chyba: Zadejte text do vstupního pole</div>';
-                return;
-            }
+        function loadHistory() {
+            fetch('api.php?action=getHistory&cipher_type=hill')
+                .then(r => r.json())
+                .then(data => {
+                    historyData = {};
+                    const tbody = document.getElementById('historyBody');
+                    if (!data.records || data.records.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="5" class="empty-row">Žádné záznamy.</td></tr>';
+                        return;
+                    }
+                    // Ulož záznamy pro přístup přes id (bezpečné předávání dat)
+                    data.records.forEach(r => { historyData[r.id] = r; });
+                    tbody.innerHTML = data.records.map(r => renderRow(r)).join('');
+                });
+        }
 
-            status.innerHTML = '<div class="success">⏳ Zpracování...</div>';
+        function renderRow(r) {
+            const isEnc = r.typ_operace === 'enc';
+            const isChild = r.parent_id !== null && r.parent_id !== '0';
+            // dec řádky jsou vizuálně "dítě" enc řádku — odsazení + jiná barva
+            const rowClass = isEnc ? 'enc-row' : 'dec-row';
+            const opLabel  = isEnc ? '🔒 enc' : '└ 🔓 dec';
+            const btn      = isEnc
+                ? `<button class="btn-decrypt" onclick="decrypt(${r.id})">🔓 Dešifrovat</button>`
+                : '';
+            return `<tr class="${rowClass}">
+                <td>${opLabel}</td>
+                <td>${truncate(r.input,  45)}</td>
+                <td class="${isChild ? 'plaintext-result' : ''}">${truncate(r.output, 45)}</td>
+                <td>${r.timestamp}</td>
+                <td>${btn}</td>
+            </tr>`;
+        }
+
+        // Decrypt se spustí přímo z tabulky — klíč a ciphertext jsou v historyData
+        async function decrypt(id) {
+            const r = historyData[id];
+            setStatus('⏳ Dešifrování...', 'success');
 
             try {
-                const response = await fetch('api.php', {
+                const resp = await fetch('api.php', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        operation: operation,
-                        input: input
+                        operation:  'hill_dec',
+                        input:      r.output,      // ciphertext → vstup pro Python
+                        cipher_key: r.cipher_key,  // uložené matice klíče
+                        parent_id:  r.id           // provázání s enc rodičem
                     })
                 });
-
-                const data = await response.json();
-
+                const data = await resp.json();
                 if (data.success) {
-                    output.textContent = data.output;
-                    status.innerHTML = '<div class="success">✓ Operace úspěšná</div>';
+                    setStatus('✓ Dešifrováno – viz tabulka', 'success');
+                    loadHistory();
                 } else {
-                    status.innerHTML = '<div class="error">❌ ' + data.error + '</div>';
+                    setStatus('❌ ' + data.error, 'error');
                 }
-            } catch (error) {
-                status.innerHTML = '<div class="error">❌ Chyba: ' + error.message + '</div>';
+            } catch (e) {
+                setStatus('❌ ' + e.message, 'error');
             }
         }
 
-        function encrypt() {
-            sendRequest('hill_enc');
-        }
+        async function encrypt() {
+            const text = document.getElementById('input').value.trim();
+            if (!text) { setStatus('❌ Zadej text', 'error'); return; }
 
-        function decrypt() {
-            sendRequest('hill_dec');
-        }
-
-        // Clear status after 5 seconds
-        setInterval(() => {
-            const status = document.getElementById('status');
-            if (status.innerHTML !== '') {
-                setTimeout(() => { status.innerHTML = ''; }, 5000);
+            setStatus('⏳ Šifrování...', 'success');
+            try {
+                const resp = await fetch('api.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ operation: 'hill_enc', input: text })
+                });
+                const data = await resp.json();
+                if (data.success) {
+                    document.getElementById('input').value = '';
+                    setStatus('✓ Zašifrováno – viz tabulka', 'success');
+                    loadHistory();
+                } else {
+                    setStatus('❌ ' + data.error, 'error');
+                }
+            } catch (e) {
+                setStatus('❌ ' + e.message, 'error');
             }
-        }, 100);
+        }
+
+        function truncate(text, len) {
+            if (!text) return '';
+            return text.length > len ? text.substring(0, len) + '…' : text;
+        }
+
+        function setStatus(msg, type) {
+            document.getElementById('status').innerHTML = `<div class="${type}">${msg}</div>`;
+            setTimeout(() => { document.getElementById('status').innerHTML = ''; }, 4000);
+        }
+
+        document.addEventListener('DOMContentLoaded', loadHistory);
     </script>
 </body>
 </html>

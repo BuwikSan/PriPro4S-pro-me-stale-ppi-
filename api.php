@@ -1,101 +1,128 @@
 <?php
-// API handler for crypto operations
+ob_start();
 header('Content-Type: application/json');
 
-// Load database connection
-require_once 'db.php';
+set_error_handler(function($errno, $errstr, $errfile, $errline) {
+    ob_clean();
+    echo json_encode(['success' => false, 'error' => "PHP Error [$errno]: $errstr in $errfile:$errline"]);
+    exit(1);
+});
 
-// Handle history retrieval (GET request)
-if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['action']) && $_GET['action'] === 'getHistory') {
-    try {
-        $stmt = $pdo->query('SELECT typ_operace, input, output, timestamp FROM history ORDER BY id DESC LIMIT 50');
-        $records = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        echo json_encode(['records' => $records]);
-    } catch (Exception $e) {
-        echo json_encode(['error' => 'Chyba při čtení historie: ' . $e->getMessage()]);
-    }
+try {
+    require_once 'db.php';
+} catch (Throwable $e) {
+    ob_clean();
+    echo json_encode(['success' => false, 'error' => 'DB: ' . $e->getMessage()]);
+    exit(1);
+}
+
+// GET: vrátí historii — seřazeno tak, že dec záznamy jsou hned za svým enc rodičem
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && ($_GET['action'] ?? '') === 'getHistory') {
+    $cipher_type = $_GET['cipher_type'] ?? 'hill';
+    $stmt = $pdo->prepare(
+        'SELECT id, typ_operace, input, output, cipher_key, parent_id, timestamp
+         FROM history
+         WHERE cipher_type = ?
+         ORDER BY COALESCE(parent_id, id) DESC, id ASC
+         LIMIT 100'
+    );
+    $stmt->execute([$cipher_type]);
+    echo json_encode(['records' => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
     exit;
 }
 
-// Handle POST requests (encrypt/decrypt operations)
+// POST: crypto operace
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $input = json_decode(file_get_contents('php://input'), true);
+    $req       = json_decode(file_get_contents('php://input'), true);
+    $op        = $req['operation']  ?? '';
+    $text      = $req['input']      ?? '';
+    $ckey      = $req['cipher_key'] ?? '';
+    $parent_id = isset($req['parent_id']) ? (int)$req['parent_id'] : null;
 
-    if (!isset($input['operation']) || !isset($input['input'])) {
+    if (!$op || !$text) {
         echo json_encode(['success' => false, 'error' => 'Chybějící parametry']);
         exit;
     }
 
-    $operation = $input['operation'];
-    $text = $input['input'];
+    try { switch ($op) {
 
-    // Route to appropriate function
-    switch ($operation) {
         case 'hill_enc':
-            $result = encryptHill($text);
+            $py = callPython(['operation' => 'hill_enc', 'text' => $text]);
+            if ($py['success']) {
+                logHistory('hill', 'enc', json_encode($py['keys_data']), $text, $py['ciphertext']);
+                echo json_encode(['success' => true, 'output' => $py['ciphertext']]);
+            } else { echo json_encode($py); }
             break;
+
         case 'hill_dec':
-            $result = decryptHill($text);
+            $keys_data = json_decode($ckey, true);
+            if (!$keys_data || empty($keys_data['keys'])) {
+                echo json_encode(['success' => false, 'error' => 'Chybí klíč pro dešifrování.']);
+                break;
+            }
+            $py = callPython(['operation' => 'hill_dec', 'text' => $text, 'keys_data' => $keys_data]);
+            if ($py['success']) {
+                logHistory('hill', 'dec', null, $text, $py['plaintext'], $parent_id);
+                echo json_encode(['success' => true, 'output' => $py['plaintext']]);
+            } else { echo json_encode($py); }
             break;
+
         case 'mlkem_enc':
-            $result = encryptMLKEM($text);
-            logHistory('mlkem_enc', $text, $result);
+            $py = callPython(['operation' => 'mlkem_enc', 'text' => $text]);
+            if ($py['success']) {
+                $ckey_json = json_encode(['pk' => $py['pk'], 'c_kem' => $py['c_kem']]);
+                logHistory('mlkem', 'enc', $ckey_json, $text, $py['ct']);
+                echo json_encode(['success' => true, 'output' => $py['ct']]);
+            } else { echo json_encode($py); }
             break;
+
         case 'mlkem_dec':
-            $result = decryptMLKEM($text);
-            logHistory('mlkem_dec', $text, $result);
+            $kd = json_decode($ckey, true);
+            if (!$kd || empty($kd['pk']) || empty($kd['c_kem'])) {
+                echo json_encode(['success' => false, 'error' => 'Chybí klíč pro dešifrování.']);
+                break;
+            }
+            $py = callPython(['operation' => 'mlkem_dec', 'ct' => $text, 'pk' => $kd['pk'], 'c_kem' => $kd['c_kem']]);
+            if ($py['success']) {
+                logHistory('mlkem', 'dec', null, $text, $py['plaintext'], $parent_id);
+                echo json_encode(['success' => true, 'output' => $py['plaintext']]);
+            } else { echo json_encode($py); }
             break;
+
         default:
             echo json_encode(['success' => false, 'error' => 'Neznámá operace']);
-            exit;
-    }
 
-    // Return success response
-    echo json_encode(['success' => true, 'output' => $result]);
+    } } catch (Throwable $e) {
+        ob_clean();
+        echo json_encode(['success' => false, 'error' => 'Server: ' . $e->getMessage()]);
+    }
     exit;
 }
 
-// Stub: Encrypt using Hill Cipher (placeholder for Python implementation)
-function encryptHill($text) {
-    // Mock: Return base64-encoded version with prefix
-    return '[Hill Encrypted] ' . base64_encode($text);
+function callPython(array $data): array {
+    $pipes = [];
+    $proc = proc_open('python3 /var/www/html/cipher_wrapper.py', [
+        0 => ['pipe', 'r'],
+        1 => ['pipe', 'w'],
+        2 => ['pipe', 'w']
+    ], $pipes);
+    if (!is_resource($proc)) return ['success' => false, 'error' => 'Nelze spustit Python'];
+    fwrite($pipes[0], json_encode($data));
+    fclose($pipes[0]);
+    $out = stream_get_contents($pipes[1]);
+    $err = stream_get_contents($pipes[2]);
+    fclose($pipes[1]); fclose($pipes[2]);
+    proc_close($proc);
+    if ($err) return ['success' => false, 'error' => 'Python: ' . trim($err)];
+    return json_decode($out, true) ?: ['success' => false, 'error' => 'Špatná odpověď'];
 }
 
-// Stub: Decrypt using Hill Cipher (placeholder for Python implementation)
-function decryptHill($text) {
-    // Mock: Decode if it looks like our encrypted format
-    if (strpos($text, '[Hill Encrypted] ') === 0) {
-        return base64_decode(substr($text, 17));
-    }
-    return '[Hill Decryption Error] Vstup není ve správném formátu';
-}
-
-// Stub: Encrypt using ML-KEM (placeholder for Python implementation)
-function encryptMLKEM($text) {
-    // Mock: Return base64-encoded version with prefix
-    return '[ML-KEM Encrypted] ' . base64_encode($text);
-}
-
-// Stub: Decrypt using ML-KEM (placeholder for Python implementation)
-function decryptMLKEM($text) {
-    // Mock: Decode if it looks like our encrypted format
-    if (strpos($text, '[ML-KEM Encrypted] ') === 0) {
-        return base64_decode(substr($text, 19));
-    }
-    return '[ML-KEM Decryption Error] Vstup není ve správném formátu';
-}
-
-// Log operation to database
-function logHistory($operation, $input, $output) {
+function logHistory(string $cipher_type, string $typ_operace, ?string $cipher_key, string $input, string $output, ?int $parent_id = null): void {
     global $pdo;
-    try {
-        $stmt = $pdo->prepare('INSERT INTO history (typ_operace, input, output) VALUES (?, ?, ?)');
-        $stmt->execute([$operation, substr($input, 0, 500), substr($output, 0, 500)]);
-    } catch (Exception $e) {
-        // Silently fail - don't crash the app if logging fails
-        error_log('Database logging error: ' . $e->getMessage());
-    }
+    $stmt = $pdo->prepare(
+        'INSERT INTO history (cipher_type, typ_operace, cipher_key, input, output, parent_id) VALUES (?, ?, ?, ?, ?, ?)'
+    );
+    $stmt->execute([$cipher_type, $typ_operace, $cipher_key, $input, $output, $parent_id]);
 }
 
-// Fallback: Invalid request
 echo json_encode(['success' => false, 'error' => 'Neplatný požadavek']);

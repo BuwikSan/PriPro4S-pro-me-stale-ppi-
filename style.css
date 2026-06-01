@@ -183,16 +183,57 @@ tr:hover td {
     background-color: #1a1b25;
 }
 
-td.clickable {
-    color: #00e5ff;
-    cursor: pointer;
-    text-decoration: underline;
-    transition: all 0.2s;
+/* Enc řádek — zelený akcent vlevo */
+tr.enc-row td {
+    background-color: #0d0e15;
+    border-left: 3px solid #00ff66;
 }
 
-td.clickable:hover {
-    color: #00ff66;
-    text-shadow: 0 0 8px #00ff66;
+/* Dec řádek — cyan akcent + odsazení (vizuální "dítě" enc řádku) */
+tr.dec-row td {
+    background-color: #080d10;
+    border-left: 3px solid #00e5ff;
+    color: #aaa;
+    font-size: 13px;
+}
+
+tr.dec-row td:first-child {
+    color: #00e5ff;
+    padding-left: 18px;
+}
+
+/* Plaintext výsledek dešifrování — zvýrazni */
+td.plaintext-result {
+    color: #00ff66 !important;
+    font-weight: bold;
+}
+
+/* Tlačítko Dešifrovat v tabulce */
+button.btn-decrypt {
+    padding: 5px 10px;
+    font-size: 12px;
+    background-color: transparent;
+    color: #00e5ff;
+    border: 1px solid #00e5ff;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: 'Courier New', monospace;
+    width: auto;
+    flex: none;
+}
+
+button.btn-decrypt:hover {
+    background-color: #00e5ff;
+    color: #0d0e15;
+    box-shadow: 0 0 10px #00e5ff;
+    transform: none;
+}
+
+td.empty-row {
+    text-align: center;
+    color: #999;
+    padding: 20px;
 }
 
 .info-box {

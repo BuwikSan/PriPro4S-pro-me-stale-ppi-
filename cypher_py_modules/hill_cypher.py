@@ -7,13 +7,14 @@ class Hills_cypher:
     enumerated_characters = dict(enumerate(CYPHER_ALPHABET))
     encharactered_numbers = {v: k for k, v in enumerated_characters.items()}
 
-    def __init__(self, number_of_rounds=1, key_length=CA_LEN, rng_seed=None):
+    def __init__(self, number_of_rounds=1, key_length=5, rng_seed=None):
         self.rng = np.random.default_rng(rng_seed)
         self.rounds = number_of_rounds
         self.key_len = key_length
-        self.keys = []
+        self.keys = []           # must exist before generate_new_set_of_keys checks len()
         self.inverse_keys = []
         self.padding_length = 0
+        self.generate_new_set_of_keys()
 
 
     # key handling ------------------------------------------------------------------------------------
@@ -64,7 +65,6 @@ class Hills_cypher:
     # formatting and encoding -------------------------------------------------------------------------------
     def _text_number_transformation(self, vectors):
         dict = self.encharactered_numbers if isinstance(vectors[0][0], str) else self.enumerated_characters
-        print(dict)
         for i in range(len(vectors)):
             for j in range(len(vectors[i])):
                 vectors[i][j] = dict[vectors[i][j]]
@@ -113,7 +113,6 @@ class Hills_cypher:
             final_string_stream += "".join(final_vectors[i])
         if decypher and self.padding_length > 0:
             final_string_stream = final_string_stream[:-self.padding_length]
-            print(final_string_stream)
         return final_string_stream
 
     def cypher(self, text):
@@ -136,11 +135,11 @@ class Hills_cypher:
 def main():
     text = "V relačním modelu jsou data uložena v tabulkách, na které má jisté požadavky. Při splnění požadavků je tabulka označována jako normalizovaná. Pokud nejsou tyto požadavky splněny, jsou označovány jako nenormalizované a proces jejich převodu na tabulky se označuje jako normalizace. Při tomto procesu dochází k odstraňování nedostatků tabulek jako je redundance nebo možnost vzniku aktualizační anomálie, tj. nechtěného vedlejšího efektu operace nad databází, při kterém dojde ke ztrátě nebo nekonzistenci dat. Postup normalizace je rozdělen do několika kroků a po dokončení každého z nich se tabulka nachází v určité normální formě. V praxi se většinou normalizuje do třetí normální formy, vyšší normální formy je vcelku obtížné porušit a vyžadují relativně velké znalosti, stejně jako návrh databází takové velikosti, kde je možné je porušit."
     cypher_engine = Hills_cypher()
-    cypher_engine.generate_new_set_of_keys()
 
     cyphered_text = cypher_engine.cypher(text)
     print(cyphered_text)
     decyphered_text = cypher_engine.decypher(cyphered_text)
     print(decyphered_text)
+
 if __name__ == "__main__":
     main()

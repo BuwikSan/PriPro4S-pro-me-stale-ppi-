@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ML-KEM - Kryptografické Šifry</title>
+    <title>ML-KEM – Kryptografické Šifry</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <header>
-        <h1>🔐 ML-KEM (Moderní Post-Kvantová Šifra)</h1>
+        <h1>🔐 ML-KEM (Post-Kvantová Šifra)</h1>
         <nav>
             <a href="index.php">← Domů</a>
             <a href="hill.php">← Hill Cipher</a>
@@ -19,39 +19,31 @@
         <main>
             <h2>ML-KEM Demonstrace</h2>
 
+            <!-- Pouze šifrování — decrypt je v tabulce -->
             <div class="form-group">
-                <label for="input">Vstup (text k zašifrování/dešifrování):</label>
-                <textarea id="input" placeholder="Zadejte text zde..."></textarea>
+                <label for="input">Vstupní text:</label>
+                <textarea id="input" placeholder="Zadej text ke zašifrování..."></textarea>
             </div>
-
             <div class="button-group">
                 <button onclick="encrypt()">🔒 Šifrovat</button>
-                <button onclick="decrypt()">🔓 Dešifrovat</button>
             </div>
-
             <div id="status"></div>
 
-            <label class="output-label" for="output">Výstup:</label>
-            <div id="output">Výsledek se zobrazí zde...</div>
-
-            <!-- History Table -->
+            <!-- Tabulka historie: enc řádky mají tlačítko Dešifrovat -->
             <div class="history-section">
-                <h2>Operace Historie</h2>
+                <h2>Historie operací</h2>
                 <table>
                     <thead>
                         <tr>
-                            <th>Operace</th>
+                            <th style="width:90px">Operace</th>
                             <th>Vstup</th>
                             <th>Výstup</th>
-                            <th>Čas</th>
+                            <th style="width:140px">Čas</th>
+                            <th style="width:110px">Akce</th>
                         </tr>
                     </thead>
                     <tbody id="historyBody">
-                        <tr>
-                            <td colspan="4" style="text-align: center; color: #999;">
-                                Zatím žádné záznamy. Proveďte operaci.
-                            </td>
-                        </tr>
+                        <tr><td colspan="5" class="empty-row">Zatím žádné záznamy.</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -59,148 +51,127 @@
             <div class="info-box">
                 <h4>🌐 Co je ML-KEM (Kyber)?</h4>
                 <p>
-                    <strong>ML-KEM</strong> (Module-Lattice-Based Key-Encapsulation Mechanism) je moderní
-                    post-kvantový šifrovací algoritmus, který se používá pro bezpečnou výměnu klíčů.
+                    <strong>ML-KEM</strong> (Module-Lattice-Based Key-Encapsulation Mechanism) —
+                    post-kvantový KEM. Standardizován NIST 2024 (FIPS 203).
                 </p>
-                <p style="margin-top: 10px;">
-                    <strong>Základní Princip:</strong><br>
-                    Bezpečnost je založena na problému &quot;Learning With Errors&quot; (LWE) na modulárních mřížích,
-                    které jsou odolné vůči útokům kvantových počítačů.
+                <p style="margin-top:10px;">
+                    <strong>Princip KEM:</strong><br>
+                    <code>keygen()</code> → (vk, pk) — veřejný + privátní klíč<br>
+                    <code>encaps(vk)</code> → (K, c) — sdílený klíč K + ciphertext c<br>
+                    <code>decaps(pk, c)</code> → K — příjemce obnoví K<br>
+                    Text se šifruje pomocí SHAKE-256 stream cipher s klíčem K.
                 </p>
-                <p style="margin-top: 10px;">
-                    <strong>Klíčové Vlastnosti:</strong><br>
-                    - Odolnost vůči kvantovým počítačům<br>
-                    - Efektivní na klasických počítačích<br>
-                    - Malé velikosti klíčů a šifrových textů<br>
-                    - Standardizován NIST (2024)
+                <p style="margin-top:10px;">
+                    <strong>Proč post-kvantové?</strong><br>
+                    RSA/ECC bezpečnost = faktorizace / diskrétní logaritmus → zlomitelné Shorovým algoritmem.<br>
+                    ML-KEM = LWE problém na modulárních mřížích → kvantově odolné.
                 </p>
-                <p style="margin-top: 10px;">
-                    <strong>Matematika:</strong><br>
-                    Bezpečnost se opírá o tvrdost polynomiálních rovnic nad módulo q.
-                    Generování klíčů vyžaduje náhodné polynomy a matice.
-                </p>
-                <p style="margin-top: 10px;">
-                    <strong>Aplikace:</strong><br>
-                    - Budoucí bezpečná komunikace<br>
-                    - Ochrana před kvantovými hrozbami<br>
-                    - TLS/SSL komunikace<br>
-                    - Digitální podpisy (via ML-DSA)
-                </p>
-                <p style="margin-top: 10px;">
-                    <strong>Srovnání s RSA:</strong><br>
-                    RSA: Bezpečnost = faktorizace velkých čísel (ohroženo kvantovými počítači)<br>
-                    ML-KEM: Bezpečnost = problém LWE (předpokládá se odolný i vůči kvantovým počítačům)
+                <p style="margin-top:10px;">
+                    <strong>Fujisaki-Okamoto:</strong>
+                    Při neplatném ciphertextu vrátí fake klíč J(z,c) — útočník nepozná selhání.
                 </p>
             </div>
         </main>
     </div>
 
-    <footer>
-        <p>© 2025 Kryptografické Laboratorium</p>
-    </footer>
+    <footer><p>© 2025 Kryptografické Laboratorium</p></footer>
 
     <script>
-        // Load history from database on page load
+        let historyData = {};
+
         function loadHistory() {
-            fetch('api.php?action=getHistory')
-                .then(response => response.json())
+            fetch('api.php?action=getHistory&cipher_type=mlkem')
+                .then(r => r.json())
                 .then(data => {
+                    historyData = {};
                     const tbody = document.getElementById('historyBody');
-                    if (data.records && data.records.length > 0) {
-                        tbody.innerHTML = '';
-                        data.records.forEach(record => {
-                            const row = document.createElement('tr');
-                            row.innerHTML = `
-                                <td>${record.typ_operace}</td>
-                                <td class="clickable" onclick="copyToInput('${escapeHtml(record.input)}')">
-                                    ${truncate(record.input, 30)}
-                                </td>
-                                <td class="clickable" onclick="copyToInput('${escapeHtml(record.output)}')">
-                                    ${truncate(record.output, 30)}
-                                </td>
-                                <td>${record.timestamp}</td>
-                            `;
-                            tbody.appendChild(row);
-                        });
+                    if (!data.records || data.records.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="5" class="empty-row">Žádné záznamy.</td></tr>';
+                        return;
                     }
-                })
-                .catch(error => console.error('Error loading history:', error));
+                    data.records.forEach(r => { historyData[r.id] = r; });
+                    tbody.innerHTML = data.records.map(r => renderRow(r)).join('');
+                });
         }
 
-        // Copy text from table to input field
-        function copyToInput(text) {
-            document.getElementById('input').value = text;
-            document.getElementById('status').innerHTML = '<div class="success">✓ Text zkopírován do vstupního pole</div>';
-            setTimeout(() => { document.getElementById('status').innerHTML = ''; }, 3000);
+        function renderRow(r) {
+            const isEnc   = r.typ_operace === 'enc';
+            const isChild = r.parent_id !== null && r.parent_id !== '0';
+            const rowClass = isEnc ? 'enc-row' : 'dec-row';
+            const opLabel  = isEnc ? '🔒 enc' : '└ 🔓 dec';
+            const btn      = isEnc
+                ? `<button class="btn-decrypt" onclick="decrypt(${r.id})">🔓 Dešifrovat</button>`
+                : '';
+            return `<tr class="${rowClass}">
+                <td>${opLabel}</td>
+                <td>${truncate(r.input,  45)}</td>
+                <td class="${isChild ? 'plaintext-result' : ''}">${truncate(r.output, 45)}</td>
+                <td>${r.timestamp}</td>
+                <td>${btn}</td>
+            </tr>`;
         }
 
-        // Escape HTML special characters
-        function escapeHtml(text) {
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        }
-
-        // Truncate long text
-        function truncate(text, length) {
-            return text.length > length ? text.substring(0, length) + '...' : text;
-        }
-
-        // Send AJAX request to API
-        async function sendRequest(operation) {
-            const input = document.getElementById('input').value;
-            const output = document.getElementById('output');
-            const status = document.getElementById('status');
-
-            if (!input.trim()) {
-                status.innerHTML = '<div class="error">❌ Chyba: Zadejte text do vstupního pole</div>';
-                return;
-            }
-
-            status.innerHTML = '<div class="success">⏳ Zpracování...</div>';
-
+        async function decrypt(id) {
+            const r = historyData[id];
+            setStatus('⏳ Dešifrování...', 'success');
             try {
-                const response = await fetch('api.php', {
+                const resp = await fetch('api.php', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        operation: operation,
-                        input: input
+                        operation:  'mlkem_dec',
+                        input:      r.output,      // ct (base64)
+                        cipher_key: r.cipher_key,  // {pk, c_kem}
+                        parent_id:  r.id
                     })
                 });
-
-                const data = await response.json();
-
+                const data = await resp.json();
                 if (data.success) {
-                    output.textContent = data.output;
-                    status.innerHTML = '<div class="success">✓ Operace úspěšná</div>';
+                    setStatus('✓ Dešifrováno – viz tabulka', 'success');
                     loadHistory();
                 } else {
-                    status.innerHTML = '<div class="error">❌ ' + data.error + '</div>';
+                    setStatus('❌ ' + data.error, 'error');
                 }
-            } catch (error) {
-                status.innerHTML = '<div class="error">❌ Chyba: ' + error.message + '</div>';
+            } catch (e) {
+                setStatus('❌ ' + e.message, 'error');
             }
         }
 
-        function encrypt() {
-            sendRequest('mlkem_enc');
+        async function encrypt() {
+            const text = document.getElementById('input').value.trim();
+            if (!text) { setStatus('❌ Zadej text', 'error'); return; }
+
+            setStatus('⏳ Šifrování...', 'success');
+            try {
+                const resp = await fetch('api.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ operation: 'mlkem_enc', input: text })
+                });
+                const data = await resp.json();
+                if (data.success) {
+                    document.getElementById('input').value = '';
+                    setStatus('✓ Zašifrováno – viz tabulka', 'success');
+                    loadHistory();
+                } else {
+                    setStatus('❌ ' + data.error, 'error');
+                }
+            } catch (e) {
+                setStatus('❌ ' + e.message, 'error');
+            }
         }
 
-        function decrypt() {
-            sendRequest('mlkem_dec');
+        function truncate(text, len) {
+            if (!text) return '';
+            return text.length > len ? text.substring(0, len) + '…' : text;
         }
 
-        // Load history when page loads
+        function setStatus(msg, type) {
+            document.getElementById('status').innerHTML = `<div class="${type}">${msg}</div>`;
+            setTimeout(() => { document.getElementById('status').innerHTML = ''; }, 4000);
+        }
+
         document.addEventListener('DOMContentLoaded', loadHistory);
-
-        // Clear status message after delay
-        setInterval(() => {
-            const status = document.getElementById('status');
-            if (status.innerHTML !== '') {
-                setTimeout(() => { status.innerHTML = ''; }, 5000);
-            }
-        }, 100);
     </script>
 </body>
 </html>
