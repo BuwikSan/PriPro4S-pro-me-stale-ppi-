@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "80:80"
+    volumes:
+      - .:/var/www/html
+    environment:
+      DB_HOST: db
+      DB_USER: crypto
+      DB_PASS: crypto_pass
+      DB_NAME: cryptodb
+    depends_on:
+      - db
+    networks:
+      - crypto_net
+
+  db:
+    image: mariadb:11
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: cryptodb
+      MYSQL_USER: crypto
+      MYSQL_PASSWORD: crypto_pass
+    volumes:
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+      - db_data:/var/lib/mysql
+    networks:
+      - crypto_net
+
+volumes:
+  db_data:
+
+networks:
+  crypto_net:
