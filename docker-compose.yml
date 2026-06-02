@@ -1,0 +1,44 @@
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "80:80"
+    volumes:
+      - .:/var/www/html
+    environment:
+      DB_HOST: db
+      DB_USER: crypto
+      DB_PASS: crypto_pass
+      DB_NAME: cryptodb
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - crypto_net
+
+  db:
+    image: mariadb:11
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: cryptodb
+      MYSQL_USER: crypto
+      MYSQL_PASSWORD: crypto_pass
+    volumes:
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+      - db_data:/var/lib/mysql
+    networks:
+      - crypto_net
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+volumes:
+  db_data:
+
+networks:
+  crypto_net:

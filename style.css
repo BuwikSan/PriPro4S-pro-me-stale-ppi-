@@ -1,0 +1,330 @@
+/* Dark hacker theme */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    background-color: #0d0e15;
+    color: #e0e0e0;
+    font-family: 'Courier New', 'Fira Code', monospace;
+    line-height: 1.6;
+    font-size: 14px;
+}
+
+header {
+    background-color: #151722;
+    border-bottom: 2px solid #00ff66;
+    padding: 20px;
+    margin-bottom: 40px;
+}
+
+header h1 {
+    color: #00ff66;
+    text-shadow: 0 0 10px #00ff66;
+    margin-bottom: 10px;
+}
+
+nav {
+    display: flex;
+    gap: 20px;
+    margin-top: 15px;
+}
+
+nav a {
+    color: #00e5ff;
+    text-decoration: none;
+    padding: 8px 16px;
+    border: 1px solid #00e5ff;
+    border-radius: 3px;
+    transition: all 0.3s;
+}
+
+nav a:hover {
+    background-color: #00e5ff;
+    color: #0d0e15;
+    box-shadow: 0 0 15px #00e5ff;
+}
+
+.container {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 0 20px;
+}
+
+main {
+    background-color: #151722;
+    border: 1px solid #00ff66;
+    border-radius: 5px;
+    padding: 30px;
+    margin-bottom: 40px;
+}
+
+h2 {
+    color: #00ff66;
+    margin-bottom: 20px;
+    border-bottom: 1px dashed #00ff66;
+    padding-bottom: 10px;
+}
+
+h3 {
+    color: #00e5ff;
+    margin-top: 20px;
+    margin-bottom: 15px;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+label {
+    display: block;
+    margin-bottom: 8px;
+    color: #00e5ff;
+    font-weight: bold;
+}
+
+textarea, input[type="text"] {
+    width: 100%;
+    padding: 12px;
+    background-color: #0d0e15;
+    color: #00ff66;
+    border: 1px solid #00ff66;
+    border-radius: 3px;
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+    resize: vertical;
+    min-height: 100px;
+}
+
+textarea:focus, input[type="text"]:focus {
+    outline: none;
+    border-color: #00e5ff;
+    box-shadow: 0 0 10px #00e5ff;
+}
+
+.button-group {
+    display: flex;
+    gap: 10px;
+    margin-top: 15px;
+}
+
+button {
+    flex: 1;
+    padding: 12px 20px;
+    background-color: #00ff66;
+    color: #0d0e15;
+    border: none;
+    border-radius: 3px;
+    font-family: 'Courier New', monospace;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s;
+    font-size: 13px;
+}
+
+button:hover {
+    background-color: #00e5ff;
+    box-shadow: 0 0 15px #00e5ff;
+    transform: scale(1.05);
+}
+
+button:active {
+    transform: scale(0.95);
+}
+
+.output-label {
+    display: block;
+    margin-top: 20px;
+    margin-bottom: 8px;
+    color: #00e5ff;
+    font-weight: bold;
+}
+
+#output, #historyOutput {
+    background-color: #0d0e15;
+    color: #00ff66;
+    border: 1px solid #00ff66;
+    padding: 12px;
+    border-radius: 3px;
+    min-height: 100px;
+    overflow-y: auto;
+    word-wrap: break-word;
+}
+
+.history-section {
+    margin-top: 40px;
+}
+
+.filter-bar {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.filter-bar select {
+    background-color: #0d0e15;
+    color: #00ff66;
+    border: 1px solid #00ff66;
+    padding: 6px 10px;
+    font-family: inherit;
+    font-size: 0.9rem;
+    cursor: pointer;
+}
+
+.filter-bar select:focus {
+    outline: none;
+    border-color: #00e5ff;
+    color: #00e5ff;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+}
+
+th {
+    background-color: #0d0e15;
+    color: #00ff66;
+    border: 1px solid #00ff66;
+    padding: 12px;
+    text-align: left;
+    font-weight: bold;
+}
+
+td {
+    border: 1px solid #00ff66;
+    padding: 12px;
+    background-color: #0d0e15;
+    color: #e0e0e0;
+}
+
+tr:hover td {
+    background-color: #1a1b25;
+}
+
+/* Enc řádek — zelený akcent vlevo */
+tr.enc-row td {
+    background-color: #0d0e15;
+    border-left: 3px solid #00ff66;
+}
+
+/* Dec řádek — cyan akcent + odsazení (vizuální "dítě" enc řádku) */
+tr.dec-row td {
+    background-color: #080d10;
+    border-left: 3px solid #00e5ff;
+    color: #aaa;
+    font-size: 13px;
+}
+
+tr.dec-row td:first-child {
+    color: #00e5ff;
+    padding-left: 18px;
+}
+
+/* Plaintext výsledek dešifrování — zvýrazni */
+td.plaintext-result {
+    color: #00ff66 !important;
+    font-weight: bold;
+}
+
+/* Tlačítko Dešifrovat v tabulce */
+button.btn-decrypt {
+    padding: 5px 10px;
+    font-size: 12px;
+    background-color: transparent;
+    color: #00e5ff;
+    border: 1px solid #00e5ff;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: 'Courier New', monospace;
+    width: auto;
+    flex: none;
+}
+
+button.btn-decrypt:hover {
+    background-color: #00e5ff;
+    color: #0d0e15;
+    box-shadow: 0 0 10px #00e5ff;
+    transform: none;
+}
+
+td.empty-row {
+    text-align: center;
+    color: #999;
+    padding: 20px;
+}
+
+.info-box {
+    background-color: #0d0e15;
+    border: 1px dashed #00e5ff;
+    border-radius: 3px;
+    padding: 20px;
+    margin-top: 30px;
+    color: #e0e0e0;
+    line-height: 1.8;
+}
+
+.info-box h4 {
+    color: #00e5ff;
+    margin-bottom: 10px;
+}
+
+code {
+    background-color: #0a0b12;
+    color: #00ff66;
+    padding: 2px 6px;
+    border-radius: 2px;
+    font-size: 12px;
+}
+
+.error {
+    color: #ff6b6b;
+    margin-top: 10px;
+    padding: 10px;
+    background-color: #1a0a0a;
+    border: 1px solid #ff6b6b;
+    border-radius: 3px;
+}
+
+.success {
+    color: #00ff66;
+    margin-top: 10px;
+    padding: 10px;
+    background-color: #0a1a0a;
+    border: 1px solid #00ff66;
+    border-radius: 3px;
+}
+
+footer {
+    text-align: center;
+    padding: 20px;
+    color: #666;
+    border-top: 1px dashed #00ff66;
+    margin-top: 60px;
+}
+
+@media (max-width: 600px) {
+    main {
+        padding: 20px;
+    }
+
+    .button-group {
+        flex-direction: column;
+    }
+
+    nav {
+        flex-direction: column;
+    }
+
+    table {
+        font-size: 12px;
+    }
+
+    th, td {
+        padding: 8px;
+    }
+}
