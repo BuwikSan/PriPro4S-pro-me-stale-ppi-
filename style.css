@@ -157,6 +157,28 @@ button:active {
     margin-top: 40px;
 }
 
+.filter-bar {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.filter-bar select {
+    background-color: #0d0e15;
+    color: #00ff66;
+    border: 1px solid #00ff66;
+    padding: 6px 10px;
+    font-family: inherit;
+    font-size: 0.9rem;
+    cursor: pointer;
+}
+
+.filter-bar select:focus {
+    outline: none;
+    border-color: #00e5ff;
+    color: #00e5ff;
+}
+
 table {
     width: 100%;
     border-collapse: collapse;

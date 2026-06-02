@@ -31,10 +31,10 @@
 
             <nav style="margin-top: 30px; display: flex; flex-direction: column; gap: 15px;">
                 <a href="hill.php" style="display: block; text-align: center; padding: 15px; border: 2px solid #00ff66; text-decoration: none; color: #00ff66; font-weight: bold; transition: all 0.3s;">
-                    📐 Hill Cipher (Hillova Šifra)
+                    Hill Cipher (Hillova Šifra)
                 </a>
                 <a href="mlkem.php" style="display: block; text-align: center; padding: 15px; border: 2px solid #00e5ff; text-decoration: none; color: #00e5ff; font-weight: bold; transition: all 0.3s;">
-                    🔐 ML-KEM (Moderní Post-Kvantová Šifra)
+                    ML-KEM (Moderní Post-Kvantová Šifra)
                 </a>
             </nav>
 
@@ -43,14 +43,16 @@
                 <p>
                     1. Vyberte jednu z šifer výše<br>
                     2. Zadejte text do vstupního pole<br>
-                    3. Klikněte na "Šifrovat" nebo "Dešifrovat"<br>
-                    4. Výsledek se zobrazí v reálném čase (bez obnovení stránky)<br>
-                    5. Prozkoumejte matematické pozadí níže
+                    3. Klikněte na "Šifrovat"<br>
+                    4. Výsledek se zobrazí v reálném čase v tabulce<br>
+                    5. V tabulce klikněte na dešifrovat<br>
+                    6. Za pomocí stejného klíče se zpráva dešifruje<br>
+                    7. Prozkoumejte detaily šifer níže
                 </p>
             </div>
 
             <div class="info-box" style="margin-top: 30px; background-color: #0a1a1a; border-color: #00e5ff;">
-                <h4 style="color: #00e5ff;">⚠️ Poznámka</h4>
+                <h4 style="color: #00e5ff;">Poznámka</h4>
                 <p>
                     Tato aplikace je určena <strong>pouze pro vzdělávací účely</strong>.
                     Šifry jsou demonstrační a nejsou vhodné pro skutečné bezpečnostní aplikace.
@@ -60,7 +62,7 @@
     </div>
 
     <footer>
-        <p>© 2025 Kryptografické Laboratorium | Vytvořeno pro vzdělávací účely</p>
+        <p>© 2025 Kryptografické Laboratorium Kamen-industries | Vytvořeno pro vzdělávací účely</p>
     </footer>
 </body>
 </html>

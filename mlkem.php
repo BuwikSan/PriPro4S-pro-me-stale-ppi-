@@ -8,7 +8,7 @@
 </head>
 <body>
     <header>
-        <h1>🔐 ML-KEM (Post-Kvantová Šifra)</h1>
+        <h1>ML-KEM (Post-Kvantová Šifra)</h1>
         <nav>
             <a href="index.php">← Domů</a>
             <a href="hill.php">← Hill Cipher</a>
@@ -32,6 +32,18 @@
             <!-- Tabulka historie: enc řádky mají tlačítko Dešifrovat -->
             <div class="history-section">
                 <h2>Historie operací</h2>
+                <div class="filter-bar">
+                    <select id="filterType" onchange="applyFilter()">
+                        <option value="all">Všechny operace</option>
+                        <option value="enc">Jen šifrování</option>
+                        <option value="dec">Jen dešifrování</option>
+                    </select>
+                    <select id="filterTime" onchange="applyFilter()">
+                        <option value="all">Celá historie</option>
+                        <option value="today">Posledních 24h</option>
+                        <option value="week">Posledních 7 dní</option>
+                    </select>
+                </div>
                 <table>
                     <thead>
                         <tr>
@@ -76,102 +88,7 @@
 
     <footer><p>© 2025 Kryptografické Laboratorium</p></footer>
 
-    <script>
-        let historyData = {};
-
-        function loadHistory() {
-            fetch('api.php?action=getHistory&cipher_type=mlkem')
-                .then(r => r.json())
-                .then(data => {
-                    historyData = {};
-                    const tbody = document.getElementById('historyBody');
-                    if (!data.records || data.records.length === 0) {
-                        tbody.innerHTML = '<tr><td colspan="5" class="empty-row">Žádné záznamy.</td></tr>';
-                        return;
-                    }
-                    data.records.forEach(r => { historyData[r.id] = r; });
-                    tbody.innerHTML = data.records.map(r => renderRow(r)).join('');
-                });
-        }
-
-        function renderRow(r) {
-            const isEnc   = r.typ_operace === 'enc';
-            const isChild = r.parent_id !== null && r.parent_id !== '0';
-            const rowClass = isEnc ? 'enc-row' : 'dec-row';
-            const opLabel  = isEnc ? '🔒 enc' : '└ 🔓 dec';
-            const btn      = isEnc
-                ? `<button class="btn-decrypt" onclick="decrypt(${r.id})">🔓 Dešifrovat</button>`
-                : '';
-            return `<tr class="${rowClass}">
-                <td>${opLabel}</td>
-                <td>${truncate(r.input,  45)}</td>
-                <td class="${isChild ? 'plaintext-result' : ''}">${truncate(r.output, 45)}</td>
-                <td>${r.timestamp}</td>
-                <td>${btn}</td>
-            </tr>`;
-        }
-
-        async function decrypt(id) {
-            const r = historyData[id];
-            setStatus('⏳ Dešifrování...', 'success');
-            try {
-                const resp = await fetch('api.php', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        operation:  'mlkem_dec',
-                        input:      r.output,      // ct (base64)
-                        cipher_key: r.cipher_key,  // {pk, c_kem}
-                        parent_id:  r.id
-                    })
-                });
-                const data = await resp.json();
-                if (data.success) {
-                    setStatus('✓ Dešifrováno – viz tabulka', 'success');
-                    loadHistory();
-                } else {
-                    setStatus('❌ ' + data.error, 'error');
-                }
-            } catch (e) {
-                setStatus('❌ ' + e.message, 'error');
-            }
-        }
-
-        async function encrypt() {
-            const text = document.getElementById('input').value.trim();
-            if (!text) { setStatus('❌ Zadej text', 'error'); return; }
-
-            setStatus('⏳ Šifrování...', 'success');
-            try {
-                const resp = await fetch('api.php', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ operation: 'mlkem_enc', input: text })
-                });
-                const data = await resp.json();
-                if (data.success) {
-                    document.getElementById('input').value = '';
-                    setStatus('✓ Zašifrováno – viz tabulka', 'success');
-                    loadHistory();
-                } else {
-                    setStatus('❌ ' + data.error, 'error');
-                }
-            } catch (e) {
-                setStatus('❌ ' + e.message, 'error');
-            }
-        }
-
-        function truncate(text, len) {
-            if (!text) return '';
-            return text.length > len ? text.substring(0, len) + '…' : text;
-        }
-
-        function setStatus(msg, type) {
-            document.getElementById('status').innerHTML = `<div class="${type}">${msg}</div>`;
-            setTimeout(() => { document.getElementById('status').innerHTML = ''; }, 4000);
-        }
-
-        document.addEventListener('DOMContentLoaded', loadHistory);
-    </script>
+    <script>const CIPHER_TYPE = 'mlkem';</script>
+    <script src="crypto.js"></script>
 </body>
 </html>
