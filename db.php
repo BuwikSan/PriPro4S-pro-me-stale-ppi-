@@ -15,6 +15,6 @@ for ($i = 0; $i < 10; $i++) {
         break;
     } catch (PDOException $e) {
         if ($i === 9) throw $e;  // po 10 pokusech vzdej a vyhoď výjimku
-        sleep(2);
+        sleep(3);
     }
 }
