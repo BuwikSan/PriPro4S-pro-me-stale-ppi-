@@ -294,7 +294,7 @@ Validace klíče zůstává v `case` — liší se pole, která se kontrolují (
 ```php
 function callPython(array $data): array {
     $pipes = [];
-    $proc = proc_open('python3 /var/www/html/cipher_wrapper.py', [
+    $proc = proc_open('python3 /var/www/html/python/cipher_wrapper.py', [
         0 => ['pipe', 'r'],   // STDIN  procesu  (PHP do něj píše)
         1 => ['pipe', 'w'],   // STDOUT procesu  (PHP z něj čte)
         2 => ['pipe', 'w']    // STDERR procesu  (chyby)
@@ -338,8 +338,8 @@ vytiskne `print(json.dumps(resp))`. (Detaily Pythonu zde nerozebíráme — umí
 
 > **Návrhová poznámka**: spouštět nový Python proces na *každý* požadavek je pomalé a u zátěže
 > neefektivní. Pro edukační aplikaci to stačí. Alternativy: dlouhoběžící Python služba (FastAPI),
-> nebo PHP rozšíření. Cesta `/var/www/html/...` je absolutní, protože pracovní adresář procesu
-> nemusí být zaručen.
+> nebo PHP rozšíření. Cesta `/var/www/html/python/...` je absolutní, protože pracovní adresář procesu
+> nemusí být zaručen. Skript je v `python/` podsložce od přechodu na organizovanou strukturu.
 
 ---
 

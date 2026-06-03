@@ -3,14 +3,17 @@ function trunc(string $s, int $len): string {
     return mb_strlen($s) > $len ? mb_substr($s, 0, $len) . '…' : $s;
 }
 
-function renderHistoryRow(array $r): string {
+function renderHistoryRow(array $r, bool $isDecrypted = false): string {
     $isEnc      = $r['typ_operace'] === 'enc';
     $rowClass   = $isEnc ? 'enc-row' : 'dec-row';
     $opLabel    = $isEnc ? '🔒 enc' : '└ 🔓 dec';
     $tdOutClass = $r['parent_id'] ? ' class="plaintext-result"' : '';
-    $btn        = $isEnc
-        ? '<button class="btn-decrypt" onclick="decrypt(' . (int)$r['id'] . ')">🔓 Dešifrovat</button>'
-        : '';
+    $btn = '';
+    if ($isEnc) {
+        $btn = $isDecrypted
+            ? '<span class="decrypted-badge">✓ Dešifrováno</span>'
+            : '<button class="btn-decrypt" onclick="decrypt(' . (int)$r['id'] . ')">🔓 Dešifrovat</button>';
+    }
     return '<tr class="' . $rowClass . '">'
         . '<td>' . $opLabel . '</td>'
         . '<td>' . htmlspecialchars(trunc((string)($r['input']  ?? ''), 45)) . '</td>'

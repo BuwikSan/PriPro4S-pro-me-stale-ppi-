@@ -1,8 +1,8 @@
 <?php
 $cipher_type = 'mlkem';
 try {
-    require_once 'db.php';
-    require_once 'render_history.php';
+    require_once 'src/db.php';
+    require_once 'src/render_history.php';
     $stmt = $pdo->prepare(
         'SELECT id, typ_operace, input, output, cipher_key, parent_id, timestamp
          FROM history WHERE cipher_type = ?
@@ -10,8 +10,10 @@ try {
     );
     $stmt->execute([$cipher_type]);
     $records = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $decryptedIds = array_fill_keys(array_filter(array_column($records, 'parent_id')), true);
 } catch (Throwable $e) {
     $records = [];
+    $decryptedIds = [];
 }
 ?>
 <!DOCTYPE html>
@@ -20,7 +22,7 @@ try {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ML-KEM – Kryptografické Šifry</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="assets/css/style.css">
 </head>
 <body>
     <header>
@@ -66,14 +68,16 @@ try {
                             <th style="width:90px">Operace</th>
                             <th>Vstup</th>
                             <th>Výstup</th>
-                            <th style="width:140px">Čas</th>
-                            <th style="width:110px">Akce</th>
+                            <th style="width:120px">Čas</th>
+                            <th style="width:130px">Akce</th>
                         </tr>
                     </thead>
                     <tbody id="historyBody">
                         <?php if (empty($records)): ?>
                             <tr><td colspan="5" class="empty-row">Zatím žádné záznamy.</td></tr>
-                        <?php else: foreach ($records as $r): echo renderHistoryRow($r); endforeach; endif; ?>
+                        <?php else: foreach ($records as $r):
+                            echo renderHistoryRow($r, $r['typ_operace'] === 'enc' && isset($decryptedIds[$r['id']]));
+                        endforeach; endif; ?>
                     </tbody>
                 </table>
             </div>
@@ -110,6 +114,6 @@ try {
         const CIPHER_TYPE = 'mlkem';
         const INITIAL_RECORDS = <?= json_encode($records) ?>;
     </script>
-    <script src="crypto.js"></script>
+    <script src="assets/js/crypto.js"></script>
 </body>
 </html>

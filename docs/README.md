@@ -3,7 +3,7 @@
 Tato složka obsahuje **kompletní vysvětlení** všech PHP modulů, Docker souborů a použitých
 technologií. Cílem je, abys porozuměl každému řádku natolik, že v něm dokážeš dělat libovolné změny.
 
-> Python kód (`cipher_wrapper.py`, `cypher_py_modules/`) zde **není** dokumentován — ten už umíš.
+> Python kód (`python/cipher_wrapper.py`, `python/cypher_py_modules/`) zde **není** dokumentován — ten už umíš.
 > Zmiňuje se jen tam, kde je nutné popsat, jak na něj PHP navazuje.
 
 ## Co je to za projekt?
@@ -30,11 +30,33 @@ z historie lze kliknutím dešifrovat zpět.
                               └──────────┘
 ```
 
-- **Frontend**: `index.php`, `hill.php`, `mlkem.php` (HTML) + `crypto.js` (logika) + `style.css` (vzhled)
-- **Backend API**: `api.php` (router) + `db.php` (připojení k DB)
-- **Šifrovací jádro**: Python (mimo rozsah dokumentace)
-- **Databáze**: MariaDB, schéma v `init.sql`
+- **Frontend**: `index.php`, `hill.php`, `mlkem.php` (HTML) + `assets/js/crypto.js` (logika) + `assets/css/style.css` (vzhled)
+- **Backend API**: `src/api.php` (router) + `src/db.php` (DB) + `src/render_history.php` (PHP render helper)
+- **Šifrovací jádro**: `python/cipher_wrapper.py` + `python/cypher_py_modules/` (mimo rozsah)
+- **Databáze**: MariaDB, schéma v `database/init.sql`
 - **Běhové prostředí**: Docker — `Dockerfile` + `docker-compose.yml`
+
+## Struktura projektu
+
+```
+/
+├── index.php, hill.php, mlkem.php   ← stránky (čisté URL na rootu)
+├── src/                             ← PHP backend
+│   ├── api.php
+│   ├── db.php
+│   └── render_history.php
+├── assets/
+│   ├── css/style.css
+│   └── js/crypto.js
+├── python/
+│   ├── cipher_wrapper.py
+│   └── cypher_py_modules/
+├── database/
+│   └── init.sql
+├── docs/
+├── Dockerfile
+└── docker-compose.yml
+```
 
 ## Obsah dokumentace
 

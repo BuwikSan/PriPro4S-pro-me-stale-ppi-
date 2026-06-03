@@ -6,7 +6,7 @@ let historyData = {};
 let allRecords = [];  // plný seznam pro client-side filtrování
 
 function loadHistory() {
-    fetch(`api.php?action=getHistory&cipher_type=${CIPHER_TYPE}`)
+    fetch(`src/api.php?action=getHistory&cipher_type=${CIPHER_TYPE}`)
         .then(r => r.json())
         .then(data => {
             historyData = {};
@@ -42,9 +42,13 @@ function renderRow(r) {
     const isEnc = r.typ_operace === 'enc';
     const rowClass = isEnc ? 'enc-row' : 'dec-row';
     const opLabel = isEnc ? '🔒 enc' : '└ 🔓 dec';
-    const btn = isEnc
-        ? `<button class="btn-decrypt" onclick="decrypt(${r.id})">🔓 Dešifrovat</button>`
-        : '';
+    let btn = '';
+    if (isEnc) {
+        const hasDecrypted = allRecords.some(rec => rec.parent_id == r.id);
+        btn = hasDecrypted
+            ? '<span class="decrypted-badge">✓ Dešifrováno</span>'
+            : `<button class="btn-decrypt" onclick="decrypt(${r.id})">🔓 Dešifrovat</button>`;
+    }
     return `<tr class="${rowClass}">
         <td>${opLabel}</td>
         <td>${truncate(r.input, 45)}</td>
@@ -58,7 +62,7 @@ async function decrypt(id) {
     const r = historyData[id];
     setStatus('⏳ Dešifrování...', 'success');
     try {
-        const resp = await fetch('api.php', {
+        const resp = await fetch('src/api.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -85,7 +89,7 @@ async function encrypt() {
     if (!text) { setStatus('❌ Zadej text', 'error'); return; }
     setStatus('⏳ Šifrování...', 'success');
     try {
-        const resp = await fetch('api.php', {
+        const resp = await fetch('src/api.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ operation: CIPHER_TYPE + '_enc', input: text })
