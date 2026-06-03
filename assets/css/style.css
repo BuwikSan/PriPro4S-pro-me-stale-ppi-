@@ -255,6 +255,19 @@ button.btn-decrypt:hover {
     transform: none;
 }
 
+td.cell-copy {
+    cursor: pointer;
+}
+
+td.cell-copy:hover {
+    color: #00e5ff !important;
+}
+
+td.cell-copied {
+    background-color: #0a2010 !important;
+    transition: background-color 0.1s;
+}
+
 .decrypted-badge {
     color: #00ff66;
     font-size: 11px;

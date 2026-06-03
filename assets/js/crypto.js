@@ -42,6 +42,7 @@ function renderRow(r) {
     const isEnc = r.typ_operace === 'enc';
     const rowClass = isEnc ? 'enc-row' : 'dec-row';
     const opLabel = isEnc ? '🔒 enc' : '└ 🔓 dec';
+    const outClass = (r.parent_id ? 'plaintext-result ' : '') + 'cell-copy';
     let btn = '';
     if (isEnc) {
         const hasDecrypted = allRecords.some(rec => rec.parent_id == r.id);
@@ -51,8 +52,8 @@ function renderRow(r) {
     }
     return `<tr class="${rowClass}">
         <td>${opLabel}</td>
-        <td>${truncate(r.input, 45)}</td>
-        <td class="${r.parent_id ? 'plaintext-result' : ''}">${truncate(r.output, 45)}</td>
+        <td class="cell-copy" data-full="${escHtml(r.input)}" title="Kliknout = kopírovat">${truncate(r.input, 45)}</td>
+        <td class="${outClass}" data-full="${escHtml(r.output)}" title="Kliknout = kopírovat">${truncate(r.output, 45)}</td>
         <td>${r.timestamp}</td>
         <td>${btn}</td>
     </tr>`;
@@ -112,9 +113,14 @@ function truncate(text, len) {
     return text.length > len ? text.substring(0, len) + '…' : text;
 }
 
+function escHtml(s) {
+    if (!s) return '';
+    return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
 function setStatus(msg, type) {
     document.getElementById('status').innerHTML = `<div class="${type}">${msg}</div>`;
-    setTimeout(() => { document.getElementById('status').innerHTML = ''; }, 4000);
+    setTimeout(() => { document.getElementById('status').innerHTML = ''; }, 8000);
 }
 
 // PHP already rendered the table on page load.
@@ -122,4 +128,14 @@ function setStatus(msg, type) {
 document.addEventListener('DOMContentLoaded', () => {
     allRecords = (typeof INITIAL_RECORDS !== 'undefined') ? INITIAL_RECORDS : [];
     allRecords.forEach(r => { historyData[r.id] = r; });
+});
+
+// Copy full text on click (event delegation — works for both PHP-rendered and JS-rendered rows)
+document.addEventListener('click', e => {
+    const td = e.target.closest('td.cell-copy');
+    if (!td) return;
+    navigator.clipboard.writeText(td.dataset.full || '').then(() => {
+        td.classList.add('cell-copied');
+        setTimeout(() => td.classList.remove('cell-copied'), 700);
+    }).catch(() => { });
 });

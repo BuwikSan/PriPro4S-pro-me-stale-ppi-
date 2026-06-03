@@ -1,6 +1,6 @@
-# `api.php` — REST API router (srdce backendu)
+# `src/api.php` — REST API router (srdce backendu)
 
-Zdroj: [../../api.php](../../api.php) (129 řádků)
+Zdroj: [../../src/api.php](../../src/api.php)
 
 Toto je **nejdůležitější PHP soubor** v projektu. Je to jediný backend endpoint. Dělá tři věci:
 
@@ -53,7 +53,7 @@ jako hodnota.
 
 ```php
 try {
-    require_once 'db.php';
+    require_once __DIR__ . '/db.php';
 } catch (Throwable $e) {
     ob_clean();
     echo json_encode(['success' => false, 'error' => 'DB: ' . $e->getMessage()]);
@@ -156,82 +156,65 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 Validace: bez operace nebo bez textu nemá smysl pokračovat. `!$op` je pravdivé, když je `$op`
 prázdné/`''`/`null`.
 
-### `switch ($op)` — router operací
-```php
-    try { switch ($op) {
-        case 'hill_enc':  ...
-        case 'hill_dec':  ...
-        case 'mlkem_enc': ...
-        case 'mlkem_dec': ...
-        default: ...
-    } } catch (Throwable $e) { ... }
-```
-Rozcestník podle hodnoty `operation`. Frontend posílá `CIPHER_TYPE + '_enc'` nebo `+ '_dec'`,
-tedy jednu ze čtyř hodnot. Celý `switch` je obalen `try/catch` — jakákoli výjimka skončí jako
-JSON chyba `'Server: ...'`.
+### `switch ($op)` — router operací (po refaktoru)
 
-#### `case 'hill_enc'` (šifrování Hill)
-```php
-$py = callPython(['operation' => 'hill_enc', 'text' => $text]);
-if ($py['success']) {
-    logHistory('hill', 'enc', json_encode($py['keys_data']), $text, $py['ciphertext']);
-    echo json_encode(['success' => true, 'output' => $py['ciphertext']]);
-} else { echo json_encode($py); }
-```
-1. Zavolá Python s operací `hill_enc` a textem.
-2. Python vrátí ciphertext + **klíče** (`keys_data` — matice + inverzní matice + padding).
-3. `logHistory()` uloží do DB: typ `hill`, operace `enc`, klíče (jako JSON v `cipher_key`),
-   vstup a výstup.
-4. Vrátí klientovi `{ success: true, output: <ciphertext> }`.
-5. Při selhání Pythonu pošle jeho chybovou odpověď dál.
+Celý switch je obalen `try/catch` — jakákoli výjimka skončí jako JSON chyba `'Server: ...'`.
+Každý `case` teď deleguje na pomocné funkce `runEnc()`/`runDec()` (viz [Část 4](#část-4-runenc-a-rundec--sdílená-logika-operací)) —
+v `case` zůstává **jen to, co je unikátní** pro danou šifru.
 
-> **Důležité**: klíče Hill šifry se generují náhodně při každém šifrování a **uloží se do DB**.
-> Bez nich nelze dešifrovat — proto je dešifrování dostupné jen z historie.
-
-#### `case 'hill_dec'` (dešifrování Hill)
+#### `case 'hill_enc'`
 ```php
-$keys_data = json_decode($ckey, true);
-if (!$keys_data || empty($keys_data['keys'])) {
-    echo json_encode(['success' => false, 'error' => 'Chybí klíč pro dešifrování.']);
+case 'hill_enc':
+    runEnc('hill', ['operation' => 'hill_enc', 'text' => $text], $text,
+        fn($py) => [$py['ciphertext'], json_encode($py['keys_data'])]
+    );
     break;
-}
-$py = callPython(['operation' => 'hill_dec', 'text' => $text, 'keys_data' => $keys_data]);
-if ($py['success']) {
-    logHistory('hill', 'dec', null, $text, $py['plaintext'], $parent_id);
-    echo json_encode(['success' => true, 'output' => $py['plaintext']]);
-} else { echo json_encode($py); }
 ```
-1. `$ckey` (z `cipher_key` daného enc záznamu) se dekóduje z JSON zpět na pole klíčů.
-2. Validace, že klíče existují.
-3. Python dešifruje a vrátí `plaintext`.
-4. `logHistory()` uloží dec záznam — `cipher_key` je `null` (dec klíč neukládá),
-   a předá `$parent_id` (odkaz na enc rodiče).
+Arrow funkce `fn($py) => [...]` říká `runEnc`, jak vytáhnout výstup a klíče z Python odpovědi.
+Hill vrací `ciphertext` + `keys_data` (matice). Klíče se uloží jako JSON do `cipher_key` v DB —
+jsou nutné pro pozdější dešifrování.
 
-#### `case 'mlkem_enc'` (šifrování ML-KEM)
+> Klíče se generují náhodně při každém šifrování a ukládají se do DB. Bez nich dešifrování nelze provést.
+
+#### `case 'hill_dec'`
 ```php
-$py = callPython(['operation' => 'mlkem_enc', 'text' => $text]);
-if ($py['success']) {
-    $ckey_json = json_encode(['pk' => $py['pk'], 'c_kem' => $py['c_kem']]);
-    logHistory('mlkem', 'enc', $ckey_json, $text, $py['ct']);
-    echo json_encode(['success' => true, 'output' => $py['ct']]);
-} else { echo json_encode($py); }
+case 'hill_dec':
+    $keys_data = json_decode($ckey, true);
+    if (!$keys_data || empty($keys_data['keys'])) {
+        echo json_encode(['success' => false, 'error' => 'Chybí klíč pro dešifrování.']);
+        break;
+    }
+    runDec('hill', ['operation' => 'hill_dec', 'text' => $text, 'keys_data' => $keys_data], $text, $parent_id);
+    break;
 ```
-ML-KEM je KEM (key-encapsulation mechanism). Python vrací tři Base64 hodnoty:
-- `ct` — zašifrovaný text (ciphertext),
-- `pk` — privátní/decaps klíč,
-- `c_kem` — zapouzdřený sdílený klíč.
+Validace klíče zůstává v `case` — pro Hill se kontroluje `keys_data['keys']`. Pro ML-KEM by
+byla jiná pole. `runDec` pak unifikuje zbytek (volání Pythonu + logování + JSON odpověď).
 
-Do `cipher_key` se uloží `pk` + `c_kem` (to, co je nutné k dešifrování).
-
-#### `case 'mlkem_dec'` (dešifrování ML-KEM)
+#### `case 'mlkem_enc'`
 ```php
-$kd = json_decode($ckey, true);
-if (!$kd || empty($kd['pk']) || empty($kd['c_kem'])) { /* chyba */ }
-$py = callPython(['operation' => 'mlkem_dec', 'ct' => $text, 'pk' => $kd['pk'], 'c_kem' => $kd['c_kem']]);
-...
+case 'mlkem_enc':
+    runEnc('mlkem', ['operation' => 'mlkem_enc', 'text' => $text], $text,
+        fn($py) => [$py['ct'], json_encode(['pk' => $py['pk'], 'c_kem' => $py['c_kem']])]
+    );
+    break;
 ```
-Z uloženého `cipher_key` vytáhne `pk` a `c_kem`, pošle je s ciphertextem Pythonu, dostane plaintext,
-uloží dec záznam s `parent_id`.
+ML-KEM Python vrátí `ct` (ciphertext), `pk` (decaps klíč), `c_kem` (zapouzdřený klíč).
+Do DB se uloží `pk` + `c_kem` jako JSON — obojí je nutné k dešifrování.
+
+#### `case 'mlkem_dec'`
+```php
+case 'mlkem_dec':
+    $kd = json_decode($ckey, true);
+    if (!$kd || empty($kd['pk']) || empty($kd['c_kem'])) {
+        echo json_encode(['success' => false, 'error' => 'Chybí klíč pro dešifrování.']);
+        break;
+    }
+    runDec('mlkem', ['operation' => 'mlkem_dec', 'ct' => $text,
+                     'pk' => $kd['pk'], 'c_kem' => $kd['c_kem']], $text, $parent_id);
+    break;
+```
+Validace kontroluje `pk` a `c_kem` (odlišná pole od Hill). Payload pro Python obsahuje
+ciphertext + oba klíče nutné pro ML-KEM `decaps`.
 
 #### `default`
 Neznámá operace → JSON chyba `'Neznámá operace'`.
