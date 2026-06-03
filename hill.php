@@ -1,3 +1,19 @@
+<?php
+$cipher_type = 'hill';
+try {
+    require_once 'db.php';
+    require_once 'render_history.php';
+    $stmt = $pdo->prepare(
+        'SELECT id, typ_operace, input, output, cipher_key, parent_id, timestamp
+         FROM history WHERE cipher_type = ?
+         ORDER BY COALESCE(parent_id, id) DESC, id ASC LIMIT 100'
+    );
+    $stmt->execute([$cipher_type]);
+    $records = $stmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (Throwable $e) {
+    $records = [];
+}
+?>
 <!DOCTYPE html>
 <html lang="cs">
 <head>
@@ -55,7 +71,9 @@
                         </tr>
                     </thead>
                     <tbody id="historyBody">
-                        <tr><td colspan="5" class="empty-row">Zatím žádné záznamy.</td></tr>
+                        <?php if (empty($records)): ?>
+                            <tr><td colspan="5" class="empty-row">Zatím žádné záznamy.</td></tr>
+                        <?php else: foreach ($records as $r): echo renderHistoryRow($r); endforeach; endif; ?>
                     </tbody>
                 </table>
             </div>
@@ -79,7 +97,10 @@
 
     <footer><p>© 2025 Kryptografické Laboratorium</p></footer>
 
-    <script>const CIPHER_TYPE = 'hill';</script>
+    <script>
+        const CIPHER_TYPE = 'hill';
+        const INITIAL_RECORDS = <?= json_encode($records) ?>;
+    </script>
     <script src="crypto.js"></script>
 </body>
 </html>

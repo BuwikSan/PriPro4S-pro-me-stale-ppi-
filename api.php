@@ -47,11 +47,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try { switch ($op) {
 
         case 'hill_enc':
-            $py = callPython(['operation' => 'hill_enc', 'text' => $text]);
-            if ($py['success']) {
-                logHistory('hill', 'enc', json_encode($py['keys_data']), $text, $py['ciphertext']);
-                echo json_encode(['success' => true, 'output' => $py['ciphertext']]);
-            } else { echo json_encode($py); }
+            runEnc('hill', ['operation' => 'hill_enc', 'text' => $text], $text,
+                fn($py) => [$py['ciphertext'], json_encode($py['keys_data'])]
+            );
             break;
 
         case 'hill_dec':
@@ -60,20 +58,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 echo json_encode(['success' => false, 'error' => 'Chybí klíč pro dešifrování.']);
                 break;
             }
-            $py = callPython(['operation' => 'hill_dec', 'text' => $text, 'keys_data' => $keys_data]);
-            if ($py['success']) {
-                logHistory('hill', 'dec', null, $text, $py['plaintext'], $parent_id);
-                echo json_encode(['success' => true, 'output' => $py['plaintext']]);
-            } else { echo json_encode($py); }
+            runDec('hill', ['operation' => 'hill_dec', 'text' => $text, 'keys_data' => $keys_data], $text, $parent_id);
             break;
 
         case 'mlkem_enc':
-            $py = callPython(['operation' => 'mlkem_enc', 'text' => $text]);
-            if ($py['success']) {
-                $ckey_json = json_encode(['pk' => $py['pk'], 'c_kem' => $py['c_kem']]);
-                logHistory('mlkem', 'enc', $ckey_json, $text, $py['ct']);
-                echo json_encode(['success' => true, 'output' => $py['ct']]);
-            } else { echo json_encode($py); }
+            runEnc('mlkem', ['operation' => 'mlkem_enc', 'text' => $text], $text,
+                fn($py) => [$py['ct'], json_encode(['pk' => $py['pk'], 'c_kem' => $py['c_kem']])]
+            );
             break;
 
         case 'mlkem_dec':
@@ -82,11 +73,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 echo json_encode(['success' => false, 'error' => 'Chybí klíč pro dešifrování.']);
                 break;
             }
-            $py = callPython(['operation' => 'mlkem_dec', 'ct' => $text, 'pk' => $kd['pk'], 'c_kem' => $kd['c_kem']]);
-            if ($py['success']) {
-                logHistory('mlkem', 'dec', null, $text, $py['plaintext'], $parent_id);
-                echo json_encode(['success' => true, 'output' => $py['plaintext']]);
-            } else { echo json_encode($py); }
+            runDec('mlkem', ['operation' => 'mlkem_dec', 'ct' => $text, 'pk' => $kd['pk'], 'c_kem' => $kd['c_kem']], $text, $parent_id);
             break;
 
         default:
@@ -97,6 +84,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         echo json_encode(['success' => false, 'error' => 'Server: ' . $e->getMessage()]);
     }
     exit;
+}
+
+function runEnc(string $cipher_type, array $py_payload, string $text, callable $extract): void {
+    $py = callPython($py_payload);
+    if (!$py['success']) { echo json_encode($py); return; }
+    [$output, $cipher_key] = $extract($py);
+    logHistory($cipher_type, 'enc', $cipher_key, $text, $output);
+    echo json_encode(['success' => true, 'output' => $output]);
+}
+
+function runDec(string $cipher_type, array $py_payload, string $text, ?int $parent_id): void {
+    $py = callPython($py_payload);
+    if (!$py['success']) { echo json_encode($py); return; }
+    logHistory($cipher_type, 'dec', null, $text, $py['plaintext'], $parent_id);
+    echo json_encode(['success' => true, 'output' => $py['plaintext']]);
 }
 
 function callPython(array $data): array {
