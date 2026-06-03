@@ -238,7 +238,58 @@ Neznámá operace → JSON chyba `'Neznámá operace'`.
 
 ---
 
-## Část 4: `callPython()` — most mezi PHP a Pythonem (řádky 102–118)
+## Část 4: `runEnc()` a `runDec()` — sdílená logika operací
+
+Původní switch měl každý `case` takřka totožný průběh: zavolej Python → zkontroluj úspěch → uloži
+do DB → vrať JSON. Rozdíl byl jen v parametrech. Refaktoring extrahoval tuto logiku do dvou
+pomocných funkcí, `switch` teď obsahuje **jen to, co je opravdu unikátní** pro každou šifru.
+
+```php
+function runEnc(string $cipher_type, array $py_payload, string $text, callable $extract): void {
+    $py = callPython($py_payload);
+    if (!$py['success']) { echo json_encode($py); return; }
+    [$output, $cipher_key] = $extract($py);
+    logHistory($cipher_type, 'enc', $cipher_key, $text, $output);
+    echo json_encode(['success' => true, 'output' => $output]);
+}
+```
+- `callable $extract` — **arrow funkce** předaná volajícím. Říká: „jak z odpovědi Pythonu vytáhnout
+  `[output, cipher_key]`". Pro Hill je to `fn($py) => [$py['ciphertext'], json_encode($py['keys_data'])]`,
+  pro ML-KEM `fn($py) => [$py['ct'], json_encode(['pk' => ..., 'c_kem' => ...])]`.
+- `[$output, $cipher_key] = $extract($py)` — **destructuring assignment**: PHP 7.1+, přiřadí
+  první prvek pole do `$output`, druhý do `$cipher_key`.
+
+```php
+function runDec(string $cipher_type, array $py_payload, string $text, ?int $parent_id): void {
+    $py = callPython($py_payload);
+    if (!$py['success']) { echo json_encode($py); return; }
+    logHistory($cipher_type, 'dec', null, $text, $py['plaintext'], $parent_id);
+    echo json_encode(['success' => true, 'output' => $py['plaintext']]);
+}
+```
+Dec je jednodušší — oba algoritmy vrací `$py['plaintext']`, takže žádný `$extract` callback
+není potřeba.
+
+### Výsledný switch
+```php
+case 'hill_enc':
+    runEnc('hill', ['operation' => 'hill_enc', 'text' => $text], $text,
+        fn($py) => [$py['ciphertext'], json_encode($py['keys_data'])]
+    );
+    break;
+
+case 'hill_dec':
+    $keys_data = json_decode($ckey, true);
+    if (!$keys_data || empty($keys_data['keys'])) { /* chyba */ break; }
+    runDec('hill', ['operation' => 'hill_dec', 'text' => $text, 'keys_data' => $keys_data], $text, $parent_id);
+    break;
+// ... analogicky mlkem_enc / mlkem_dec
+```
+Validace klíče zůstává v `case` — liší se pole, která se kontrolují (`keys` vs `pk`/`c_kem`).
+
+---
+
+## Část 5: `callPython()` — most mezi PHP a Pythonem
 
 ```php
 function callPython(array $data): array {

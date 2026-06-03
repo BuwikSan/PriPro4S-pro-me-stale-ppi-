@@ -1,5 +1,6 @@
 // Shared logic for hill.php and mlkem.php
 // Each page sets: const CIPHER_TYPE = 'hill' | 'mlkem'
+// Each page sets: const INITIAL_RECORDS = [...] (server-rendered by PHP on page load)
 
 let historyData = {};
 let allRecords = [];  // plný seznam pro client-side filtrování
@@ -112,4 +113,9 @@ function setStatus(msg, type) {
     setTimeout(() => { document.getElementById('status').innerHTML = ''; }, 4000);
 }
 
-document.addEventListener('DOMContentLoaded', loadHistory);
+// PHP already rendered the table on page load.
+// Populate data structures so filters and decrypt() work immediately.
+document.addEventListener('DOMContentLoaded', () => {
+    allRecords = (typeof INITIAL_RECORDS !== 'undefined') ? INITIAL_RECORDS : [];
+    allRecords.forEach(r => { historyData[r.id] = r; });
+});

@@ -39,9 +39,10 @@ z historie lze kliknutím dešifrovat zpět.
 ## Obsah dokumentace
 
 ### PHP moduly
-- [php/api.md](php/api.md) — REST API router, volání Pythonu, logování do DB
+- [php/api.md](php/api.md) — REST API router, `runEnc`/`runDec` helpers, volání Pythonu, logování
 - [php/db.md](php/db.md) — připojení k databázi přes PDO, retry logika
-- [php/stranky.md](php/stranky.md) — `index.php`, `hill.php`, `mlkem.php` (HTML stránky)
+- [php/render_history.md](php/render_history.md) — `render_history.php`: sdílené PHP renderování řádků tabulky
+- [php/stranky.md](php/stranky.md) — `index.php`, `hill.php`, `mlkem.php` + `crypto.js`
 
 ### Docker a databáze
 - [docker/Dockerfile.md](docker/Dockerfile.md) — sestavení web image (PHP + Apache + Python)
