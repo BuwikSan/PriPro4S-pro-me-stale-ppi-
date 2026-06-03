@@ -9,7 +9,7 @@ set_error_handler(function($errno, $errstr, $errfile, $errline) {
 });
 
 try {
-    require_once 'db.php';
+    require_once __DIR__ . '/db.php';
 } catch (Throwable $e) {
     ob_clean();
     echo json_encode(['success' => false, 'error' => 'DB: ' . $e->getMessage()]);
@@ -103,7 +103,7 @@ function runDec(string $cipher_type, array $py_payload, string $text, ?int $pare
 
 function callPython(array $data): array {
     $pipes = [];
-    $proc = proc_open('python3 /var/www/html/cipher_wrapper.py', [
+    $proc = proc_open('python3 /var/www/html/python/cipher_wrapper.py', [
         0 => ['pipe', 'r'],
         1 => ['pipe', 'w'],
         2 => ['pipe', 'w']

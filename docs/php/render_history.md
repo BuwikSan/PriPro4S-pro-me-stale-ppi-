@@ -1,9 +1,9 @@
-# `render_history.php` — sdílené PHP renderování řádků tabulky
+# `src/render_history.php` — sdílené PHP renderování řádků tabulky
 
-Zdroj: [../../render_history.php](../../render_history.php) (20 řádků)
+Zdroj: [../../src/render_history.php](../../src/render_history.php)
 
 Tento soubor obsahuje **dvě pomocné PHP funkce** pro generování HTML řádků tabulky historie.
-Obě stránky ([hill.php](stranky.md), [mlkem.php](stranky.md)) ho sdílí přes `require_once`,
+Obě stránky ([hill.php](stranky.md), [mlkem.php](stranky.md)) ho sdílí přes `require_once 'src/render_history.php'`,
 čímž se eliminuje duplicita renderovací logiky.
 
 > Jsou to PHP protějšky JS funkce `renderRow()` z [crypto.js](stranky.md#cryptojs--sdílená-logika-frontendu).
@@ -31,21 +31,18 @@ function trunc(string $s, int $len): string {
 ## `renderHistoryRow()` — jeden `<tr>` řádek tabulky
 
 ```php
-function renderHistoryRow(array $r): string {
+function renderHistoryRow(array $r, bool $isDecrypted = false): string {
     $isEnc      = $r['typ_operace'] === 'enc';
     $rowClass   = $isEnc ? 'enc-row' : 'dec-row';
     $opLabel    = $isEnc ? '🔒 enc' : '└ 🔓 dec';
     $tdOutClass = $r['parent_id'] ? ' class="plaintext-result"' : '';
-    $btn        = $isEnc
-        ? '<button class="btn-decrypt" onclick="decrypt(' . (int)$r['id'] . ')">🔓 Dešifrovat</button>'
-        : '';
-    return '<tr class="' . $rowClass . '">'
-        . '<td>' . $opLabel . '</td>'
-        . '<td>' . htmlspecialchars(trunc((string)($r['input']  ?? ''), 45)) . '</td>'
-        . '<td' . $tdOutClass . '>' . htmlspecialchars(trunc((string)($r['output'] ?? ''), 45)) . '</td>'
-        . '<td>' . htmlspecialchars($r['timestamp']) . '</td>'
-        . '<td>' . $btn . '</td>'
-        . '</tr>';
+    $btn = '';
+    if ($isEnc) {
+        $btn = $isDecrypted
+            ? '<span class="decrypted-badge">✓ Dešifrováno</span>'
+            : '<button class="btn-decrypt" onclick="decrypt(' . (int)$r['id'] . ')">🔓 Dešifrovat</button>';
+    }
+    // ...
 }
 ```
 
@@ -53,14 +50,18 @@ function renderHistoryRow(array $r): string {
 Jedno asociativní pole — jeden řádek z databáze (výsledek `PDO::FETCH_ASSOC`). Sloupce:
 `id`, `typ_operace`, `input`, `output`, `cipher_key`, `parent_id`, `timestamp`.
 
+### Parametr `$isDecrypted`
+Volitelný bool (default `false`). Když je `true`, tlačítko Dešifrovat se nahradí statickým
+odznakem `✓ Dešifrováno`. Volající (stránka) ho vypočítá z `$decryptedIds` — viz níže.
+
 ### Logika rozlišení enc / dec
-Identická s JS `renderRow()`:
 
 | Podmínka | enc řádek | dec řádek |
 |----------|-----------|-----------|
 | CSS třída `<tr>` | `enc-row` | `dec-row` |
 | Label operace | `🔒 enc` | `└ 🔓 dec` |
-| Tlačítko | `🔓 Dešifrovat` | — |
+| Tlačítko (neproběhlo dešifrování) | `🔓 Dešifrovat` | — |
+| Odznak (proběhlo dešifrování) | `✓ Dešifrováno` | — |
 | Třída výstupu | — | `plaintext-result` (pokud `parent_id` není NULL) |
 
 ### `(int)$r['id']` v tlačítku

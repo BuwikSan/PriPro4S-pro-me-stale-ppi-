@@ -26,7 +26,7 @@ services:
       MYSQL_USER: crypto
       MYSQL_PASSWORD: crypto_pass
     volumes:
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
       - db_data:/var/lib/mysql
     networks:
       - crypto_net

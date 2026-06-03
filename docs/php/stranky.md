@@ -4,9 +4,9 @@ Zdroje:
 - [../../index.php](../../index.php) — domovská stránka
 - [../../hill.php](../../hill.php) — stránka Hill Cipher
 - [../../mlkem.php](../../mlkem.php) — stránka ML-KEM
-- [../../render_history.php](../../render_history.php) — sdílené PHP renderování řádků tabulky
-- [../../crypto.js](../../crypto.js) — sdílená JS logika obou šifrovacích stránek
-- [../../style.css](../../style.css) — vzhled (zmíněno níže)
+- [../../src/render_history.php](../../src/render_history.php) — sdílené PHP renderování řádků tabulky
+- [../../assets/js/crypto.js](../../assets/js/crypto.js) — sdílená JS logika obou šifrovacích stránek
+- [../../assets/css/style.css](../../assets/css/style.css) — vzhled (zmíněno níže)
 
 ---
 
@@ -25,7 +25,7 @@ odkazy na šifrovací stránky.
     <meta charset="UTF-8">                                  <!-- kódování → česká diakritika -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0">  <!-- responzivita -->
     <title>Kryptografické Šifry</title>                     <!-- titulek v záložce -->
-    <link rel="stylesheet" href="style.css">                <!-- připojení CSS -->
+    <link rel="stylesheet" href="assets/css/style.css">      <!-- připojení CSS -->
 </head>
 <body> ... </body>
 </html>
@@ -34,7 +34,7 @@ odkazy na šifrovací stránky.
 - `<meta charset="UTF-8">` — bez něj by se česká písmena (`č`, `ř`, `ž`) zobrazila rozbitě.
 - `<meta name="viewport" ...>` — nutné, aby stránka byla použitelná na mobilu (spolupracuje
   s `@media` v CSS).
-- `<link rel="stylesheet" href="style.css">` — načte vzhled.
+- `<link rel="stylesheet" href="assets/css/style.css">` — načte vzhled.
 
 ### Obsah
 - `<header>` s názvem a podtitulem.
@@ -67,8 +67,8 @@ hodnotou `$cipher_type`. Mají stejnou strukturu:
 <?php
 $cipher_type = 'hill';   // nebo 'mlkem' v mlkem.php
 try {
-    require_once 'db.php';
-    require_once 'render_history.php';
+    require_once 'src/db.php';
+    require_once 'src/render_history.php';
     $stmt = $pdo->prepare(
         'SELECT id, typ_operace, input, output, cipher_key, parent_id, timestamp
          FROM history WHERE cipher_type = ?
@@ -76,15 +76,21 @@ try {
     );
     $stmt->execute([$cipher_type]);
     $records = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $decryptedIds = array_fill_keys(array_filter(array_column($records, 'parent_id')), true);
 } catch (Throwable $e) {
-    $records = [];   // při chybě DB zobraz stránku bez historie
+    $records = [];
+    $decryptedIds = [];
 }
 ?>
 ```
 
-- `require_once 'db.php'` — připojení k DB (viz [db.md](db.md)), vytvoří `$pdo`.
-- `require_once 'render_history.php'` — načte funkce `trunc()` a `renderHistoryRow()`
+- `require_once 'src/db.php'` — připojení k DB (viz [db.md](db.md)), vytvoří `$pdo`.
+- `require_once 'src/render_history.php'` — načte funkce `trunc()` a `renderHistoryRow()`
   (viz [render_history.md](render_history.md)).
+- `$decryptedIds` — pomocná mapa `[enc_id => true]` pro všechny enc záznamy, které mají dec
+  potomka. Algoritmus: `array_column` vytáhne všechna `parent_id` → `array_filter` odstraní
+  `null` hodnoty → `array_fill_keys` z nich udělá klíče mapy. Pak `isset($decryptedIds[$r['id']])`
+  je O(1) lookup. Předává se `renderHistoryRow()` jako `$isDecrypted` — viz [render_history.md](render_history.md).
 - SQL dotaz je totožný s tím v [api.php](api.md#část-2-get--čtení-historie) — stejné řazení,
   stejný LIMIT.
 - `try/catch` — pokud se DB nedostupná, stránka se zobrazí s prázdnou historií místo PHP chyby.
@@ -132,7 +138,9 @@ try {
 <tbody id="historyBody">
     <?php if (empty($records)): ?>
         <tr><td colspan="5" class="empty-row">Zatím žádné záznamy.</td></tr>
-    <?php else: foreach ($records as $r): echo renderHistoryRow($r); endforeach; endif; ?>
+    <?php else: foreach ($records as $r):
+        echo renderHistoryRow($r, $r['typ_operace'] === 'enc' && isset($decryptedIds[$r['id']]));
+    endforeach; endif; ?>
 </tbody>
 ```
 
@@ -150,7 +158,7 @@ v HTML kontextu než klasické složené závorky.
     const CIPHER_TYPE = 'hill';
     const INITIAL_RECORDS = <?= json_encode($records) ?>;
 </script>
-<script src="crypto.js"></script>
+<script src="assets/js/crypto.js"></script>
 ```
 
 ```html
@@ -159,7 +167,7 @@ v HTML kontextu než klasické složené závorky.
     const CIPHER_TYPE = 'mlkem';
     const INITIAL_RECORDS = <?= json_encode($records) ?>;
 </script>
-<script src="crypto.js"></script>
+<script src="assets/js/crypto.js"></script>
 ```
 
 **Dvě globální JS konstanty** nastavené PHP **před** načtením `crypto.js`:
@@ -181,9 +189,9 @@ v HTML kontextu než klasické složené závorky.
 
 ## `crypto.js` — sdílená logika frontendu
 
-Zdroj: [../../crypto.js](../../crypto.js)
+Zdroj: [../../assets/js/crypto.js](../../assets/js/crypto.js)
 
-Toto je „mozek" obou šifrovacích stránek. Komunikuje s [api.php](api.md) přes `fetch()` a
+Toto je „mozek" obou šifrovacích stránek. Komunikuje s [src/api.php](api.md) přes `fetch()` a
 vykresluje historii. Není to PHP, ale je nutné ho znát, protože spojuje stránky s backendem.
 
 ### Globální stav
@@ -270,18 +278,22 @@ function applyFilter() {
 ```js
 function renderRow(r) {
     const isEnc = r.typ_operace === 'enc';
-    const rowClass = isEnc ? 'enc-row' : 'dec-row';
-    const opLabel = isEnc ? '🔒 enc' : '└ 🔓 dec';
-    const btn = isEnc
-        ? `<button class="btn-decrypt" onclick="decrypt(${r.id})">🔓 Dešifrovat</button>`
-        : '';
+    let btn = '';
+    if (isEnc) {
+        const hasDecrypted = allRecords.some(rec => rec.parent_id == r.id);
+        btn = hasDecrypted
+            ? '<span class="decrypted-badge">✓ Dešifrováno</span>'
+            : `<button class="btn-decrypt" onclick="decrypt(${r.id})">🔓 Dešifrovat</button>`;
+    }
     return `<tr class="${rowClass}"> ... </tr>`;
 }
 ```
-- Enc řádky dostanou třídu `enc-row` (zelený akcent) a **tlačítko Dešifrovat**.
-- Dec řádky dostanou `dec-row` (odsazené, cyan — vizuálně „dítě" enc řádku) a žádné tlačítko.
-- `onclick="decrypt(${r.id})"` — tlačítko předá `id` záznamu funkci `decrypt`.
-- Vizuál tříd `enc-row`/`dec-row`/`plaintext-result` je v [../../style.css](../../style.css).
+- Enc řádky dostanou třídu `enc-row` (zelený akcent).
+- `hasDecrypted` — kontroluje, zda v `allRecords` existuje záznam s `parent_id == r.id`.
+  Pokud ano, zobrazí odznak `✓ Dešifrováno` místo tlačítka. `==` (loose equality) proto, že
+  PDO vrací ID jako string a JS ho může mít také jako string — loose porovnání `"1" == "1"` funguje.
+- Dec řádky dostanou `dec-row` (odsazené, cyan) a žádné tlačítko.
+- Vizuál tříd `enc-row`/`dec-row`/`plaintext-result`/`decrypted-badge` je v [../../assets/css/style.css](../../assets/css/style.css).
 
 ### `encrypt()` — odeslání textu k zašifrování
 ```js
@@ -289,7 +301,7 @@ async function encrypt() {
     const text = document.getElementById('input').value.trim();
     if (!text) { setStatus('❌ Zadej text', 'error'); return; }
     setStatus('⏳ Šifrování...', 'success');
-    const resp = await fetch('api.php', {
+    const resp = await fetch('src/api.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ operation: CIPHER_TYPE + '_enc', input: text })
@@ -311,7 +323,7 @@ async function encrypt() {
 ```js
 async function decrypt(id) {
     const r = historyData[id];
-    const resp = await fetch('api.php', {
+    const resp = await fetch('src/api.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
