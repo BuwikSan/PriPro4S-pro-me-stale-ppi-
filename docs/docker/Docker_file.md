@@ -1,4 +1,4 @@
-# `Dockerfile` — recept na webový image
+# Dockerfile — recept na webový image
 
 Zdroj: [../../Dockerfile](../../Dockerfile) (20 řádků)
 
@@ -22,10 +22,10 @@ varianta s Apache". Díky tomu nemusíš Apache ani PHP instalovat ručně.
 ```dockerfile
 # Install all packages in one layer to reduce size
 RUN apt-get update && apt-get install -y \
-    python3 \
-    python3-numpy \
-    python3-sympy \
-    && rm -rf /var/lib/apt/lists/*
+  python3 \
+  python3-numpy \
+  python3-sympy \
+  && rm -rf /var/lib/apt/lists/*
 ```
 ### `RUN` — spuštění příkazu při buildu
 `RUN` spustí shell příkaz **během sestavování** image. Základní image je Debian, takže používá
@@ -33,8 +33,8 @@ správce balíčků `apt-get`.
 
 - `apt-get update` — stáhne aktuální seznam balíčků.
 - `apt-get install -y python3 python3-numpy python3-sympy` — nainstaluje **Python 3** a knihovny
-  **numpy** (matice — pro Hill šifru) a **sympy** (modulární inverze — pro Hill). `-y` =
-  automaticky odpověz „ano" na dotazy (build je neinteraktivní).
+**numpy** (matice — pro Hill šifru) a **sympy** (modulární inverze — pro Hill). `-y` =
+automaticky odpověz „ano" na dotazy (build je neinteraktivní).
 - `rm -rf /var/lib/apt/lists/*` — smaže cache balíčků → **menší výsledný image**.
 
 #### Proč všechno v jednom `RUN`?
@@ -66,10 +66,10 @@ RUN echo 'short_open_tag = Off' >> /usr/local/etc/php/php.ini
 ```
 ### Konfigurace Apache a PHP
 - `a2enmod rewrite` — („**a2enmod**" = Apache2 enable module) zapne modul `mod_rewrite` pro
-  přepisování URL. V tomto projektu se aktivně nevyužívá, ale je to běžná příprava.
+přepisování URL. V tomto projektu se aktivně nevyužívá, ale je to běžná příprava.
 - `echo 'short_open_tag = Off' >> .../php.ini` — připíše do PHP konfigurace vypnutí „krátkých
-  značek". To znamená, že PHP rozpozná **jen** `<?php`, ne `<?`. Brání záměnám a je to bezpečnější
-  default. (`>>` = připojit na konec souboru.)
+značek". To znamená, že PHP rozpozná **jen** `<?php`, ne `<?`. Brání záměnám a je to bezpečnější
+default. (`>>` = připojit na konec souboru.)
 
 ```dockerfile
 WORKDIR /var/www/html
@@ -88,10 +88,10 @@ samotný zpřístupní až `ports:` v compose souboru. Apache uvnitř kontejneru
 
 ## Co tu chybí a proč to (zatím) funguje
 - **Žádné `COPY`/`ADD`**: kód se do image nekopíruje! Místo toho ho compose **mountuje** jako
-  volume (`.:/var/www/html`). Výhoda při vývoji: změníš PHP soubor a hned je vidět, bez rebuildu.
-  Nevýhoda pro produkci: image není soběstačný (potřebuje zdrojové soubory zvenčí).
+volume (`.:/var/www/html`). Výhoda při vývoji: změníš PHP soubor a hned je vidět, bez rebuildu.
+Nevýhoda pro produkci: image není soběstačný (potřebuje zdrojové soubory zvenčí).
 - **Žádný `CMD`/`ENTRYPOINT`**: dědí se ze základního image `php:8.2-apache`, který sám spouští
-  Apache na popředí.
+Apache na popředí.
 
 ## Build a běh
 ```bash
